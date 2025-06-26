@@ -22,7 +22,7 @@ import { AuthModule } from './auth/auth.module';
         type: 'postgres',
         url: configService.get<string>('DATABASE_URL'),
         entities: [__dirname + "/**/*.entity{.ts,.js}"],
-        synchronize: true, // À désactiver en production
+        synchronize: false, // À désactiver en production
       }),
       inject: [ConfigService],
     }),

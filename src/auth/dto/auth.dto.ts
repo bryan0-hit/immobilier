@@ -31,7 +31,6 @@ export class RegisterGestionnaireDto {
   @MinLength(8, { message: 'Le mot de passe doit contenir au moins 8 caractères' })
   motDePasse: string;
 
-  @IsOptional()
   @IsString({ message: 'Le téléphone doit être une chaîne de caractères' })
   @MaxLength(20, { message: 'Le téléphone ne peut pas dépasser 20 caractères' })
   telephone?: string;
@@ -96,23 +95,10 @@ export class CreateLocataireDto {
 }
 
 // DTO pour la connexion par email
-export class LoginEmailDto {
-  @IsNotEmpty({ message: 'L\'email est requis' })
-  @IsEmail({}, { message: 'L\'email doit être valide' })
-  email: string;
-
-  @IsNotEmpty({ message: 'Le mot de passe est requis' })
-  @IsString({ message: 'Le mot de passe doit être une chaîne de caractères' })
-  motDePasse: string;
-}
-
-export class LoginPhoneDto {
-  @IsNotEmpty({ message: 'Le numéro de téléphone est requis' })
-  @IsString({ message: 'Le numéro de téléphone doit être une chaîne de caractères' })
-  @Matches(/^(\+237|237)?[67][0-9]{8}$/, { 
-    message: 'Le numéro de téléphone doit être un numéro camerounais valide' 
-  })
-  telephone: string;
+export class LoginDto {
+  @IsNotEmpty({ message: 'L\'identifiant est requis' })
+  @IsString({ message: 'L\'identifiant doit être une chaîne de caractères' })
+  identifiant: string; // Peut être email ou téléphone
 
   @IsNotEmpty({ message: 'Le mot de passe est requis' })
   @IsString({ message: 'Le mot de passe doit être une chaîne de caractères' })

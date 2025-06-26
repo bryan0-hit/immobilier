@@ -22,10 +22,9 @@ import {
   RegisterGestionnaireDto,
   CreateBailleurDto,
   CreateLocataireDto,
-  LoginEmailDto,
   LoginMatriculeDto,
   ChangePasswordDto,
-  LoginPhoneDto,
+  LoginDto
 } from './dto/auth.dto';
 
 @Controller('auth')
@@ -91,13 +90,13 @@ export class AuthController {
   }
 
   // Connexion par email (gestionnaires et bailleurs)
-  @Post('login/email')
-  async loginWithEmail(
-    @Body() loginDto: LoginEmailDto,
+  @Post('login')
+  async login(
+    @Body() loginDto: LoginDto,
     @Response() res: ExpressResponse,
   ) {
     try {
-      const result = await this.authService.loginWithEmail(loginDto, res);
+      const result = await this.authService.login(loginDto, res);
       return res.json({
         message: 'Connexion réussie',
         data: result,
@@ -110,24 +109,7 @@ export class AuthController {
     }
   }
 
-   @Post('login/phone')
-  async loginWithPhone(
-    @Body() loginDto: LoginPhoneDto,
-    @Response() res: ExpressResponse,
-  ) {
-    try {
-      const result = await this.authService.loginWithPhone(loginDto, res);
-      return res.json({
-        message: 'Connexion réussie',
-        data: result,
-      });
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'Erreur de connexion',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-  }
+
 
 
   // Connexion par matricule (locataires)

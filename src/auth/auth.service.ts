@@ -11,10 +11,9 @@ import {
   RegisterGestionnaireDto,
   CreateBailleurDto,
   CreateLocataireDto,
-  LoginEmailDto,
   LoginMatriculeDto,
   ChangePasswordDto,
-  LoginPhoneDto,
+  LoginDto
 } from './dto/auth.dto';
 
 @Injectable()
@@ -129,6 +128,13 @@ export class AuthService {
       throw new HttpException('Cet email est déjà utilisé', HttpStatus.CONFLICT);
     }
 
+    const telephoneExistant = await this.utilisateurRepository.findOne({
+      where: { telephone },
+    });
+    if (telephoneExistant) {
+      throw new HttpException('Ce numéro de téléphone est déjà utilisé', HttpStatus.CONFLICT);
+    }
+
     const hashedPassword = await this.hashPassword(motDePasse);
 
     const gestionnaire = this.utilisateurRepository.create({
@@ -216,40 +222,63 @@ export class AuthService {
   }
 
   // Connexion par email (gestionnaires et bailleurs)
-  async loginWithEmail(loginDto: LoginEmailDto, response: Response) {
-    const { email, motDePasse } = loginDto;
-
-    const user = await this.utilisateurRepository.findOne({
-      where: { email },
-    });
-
-    if (!user) {
-      throw new HttpException('Email ou mot de passe incorrect', HttpStatus.UNAUTHORIZED);
+ async login(loginDto: LoginDto, response: Response) {
+    const { identifiant, motDePasse } = loginDto;
+    
+    // Détecter automatiquement si c'est un email ou un téléphone
+    const isEmail = this.isEmail(identifiant);
+    const isPhone = this.isPhoneNumber(identifiant);
+    
+    if (!isEmail && !isPhone) {
+      throw new HttpException(
+        'Format d\'identifiant invalide. Veuillez fournir un email ou un numéro de téléphone valide',
+        HttpStatus.BAD_REQUEST
+      );
     }
-
-    if (user.role === UserRole.LOCATAIRE) {
-      throw new HttpException('Accès non autorisé pour ce type de compte', HttpStatus.FORBIDDEN);
+    
+    let user;
+    
+    if (isEmail) {
+      // Connexion par email
+      user = await this.loginByEmail(identifiant, motDePasse);
+    } else if (isPhone) {
+      // Connexion par téléphone
+      user = await this.loginByPhone(identifiant, motDePasse);
     }
-
-    const isPasswordValid = await this.verifyPassword(motDePasse, user.motDePasse);
-    if (!isPasswordValid) {
-      throw new HttpException('Email ou mot de passe incorrect', HttpStatus.UNAUTHORIZED);
-    }
-
+    
     if (!user.actif) {
       throw new HttpException('Compte désactivé', HttpStatus.FORBIDDEN);
     }
-
+    
     const tokens = this.generateTokens(user);
     this.setCookies(response, tokens.accessToken, tokens.refreshToken);
-
     return tokens.user;
   }
-
-   async loginWithPhone(loginDto: LoginPhoneDto, response: Response) {
-    const { telephone, motDePasse } = loginDto;
+  
+  private async loginByEmail(email: string, motDePasse: string) {
+    const user = await this.utilisateurRepository.findOne({
+      where: { email },
+    });
     
-    // Normaliser le numéro de téléphone (enlever les préfixes +237 ou 237)
+    if (!user) {
+      throw new HttpException('Identifiant ou mot de passe incorrect', HttpStatus.UNAUTHORIZED);
+    }
+    
+    if (user.role === UserRole.LOCATAIRE) {
+      throw new HttpException('Accès non autorisé pour ce type de compte', HttpStatus.FORBIDDEN);
+    }
+    
+    const isPasswordValid = await this.verifyPassword(motDePasse, user.motDePasse);
+    if (!isPasswordValid) {
+      throw new HttpException('Identifiant ou mot de passe incorrect', HttpStatus.UNAUTHORIZED);
+    }
+    
+    return user;
+  }
+  
+  // Méthode privée pour connexion par téléphone
+  private async loginByPhone(telephone: string, motDePasse: string) {
+    // Normaliser le numéro de téléphone
     const normalizedPhone = this.normalizePhoneNumber(telephone);
     
     const user = await this.utilisateurRepository.findOne({
@@ -257,7 +286,7 @@ export class AuthService {
     });
     
     if (!user) {
-      throw new HttpException('Numéro de téléphone ou mot de passe incorrect', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('Identifiant ou mot de passe incorrect', HttpStatus.UNAUTHORIZED);
     }
     
     // Vérifier que seuls les gestionnaires et bailleurs peuvent se connecter par téléphone
@@ -271,17 +300,12 @@ export class AuthService {
     
     const isPasswordValid = await this.verifyPassword(motDePasse, user.motDePasse);
     if (!isPasswordValid) {
-      throw new HttpException('Numéro de téléphone ou mot de passe incorrect', HttpStatus.UNAUTHORIZED);
+      throw new HttpException('Identifiant ou mot de passe incorrect', HttpStatus.UNAUTHORIZED);
     }
     
-    if (!user.actif) {
-      throw new HttpException('Compte désactivé', HttpStatus.FORBIDDEN);
-    }
-    
-    const tokens = this.generateTokens(user);
-    this.setCookies(response, tokens.accessToken, tokens.refreshToken);
-    return tokens.user;
+    return user;
   }
+  
 
   // Méthode utilitaire pour normaliser les numéros de téléphone
   private normalizePhoneNumber(phone: string): string {
@@ -296,6 +320,18 @@ export class AuthService {
     }
     
     return normalized;
+  }
+    // Méthode utilitaire pour détecter si c'est un email
+  private isEmail(identifiant: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(identifiant);
+  }
+  
+  // Méthode utilitaire pour détecter si c'est un numéro de téléphone
+  private isPhoneNumber(identifiant: string): boolean {
+    // Regex pour numéros camerounais : +237xxxxxxxx, 237xxxxxxxx, ou xxxxxxxx (commençant par 6 ou 7)
+    const phoneRegex = /^(\+237|237)?[67][0-9]{8}$/;
+    return phoneRegex.test(identifiant.replace(/[\s\-\(\)]/g, ''));
   }
 
   // Connexion par matricule (locataires)

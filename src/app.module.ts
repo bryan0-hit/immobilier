@@ -23,6 +23,13 @@ import { AuthModule } from './auth/auth.module';
         url: configService.get<string>('DATABASE_URL'),
         entities: [__dirname + "/**/*.entity{.ts,.js}"],
         synchronize: false, // À désactiver en production
+        ssl: true,
+extra: {
+  ssl: {
+    rejectUnauthorized: false,
+  },
+},
+ autoLoadEntities: true,
       }),
       inject: [ConfigService],
     }),
